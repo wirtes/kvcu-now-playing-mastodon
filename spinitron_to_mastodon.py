@@ -26,6 +26,7 @@ DEFAULT_SPINITRON_URL = (
 DEFAULT_FALLBACK_URL = "https://spinitron.com/KVCU/"
 DEFAULT_STATE_FILE = "last_spin_id.txt"
 DEFAULT_TIMEOUT = 20
+STATIC_HASHTAGS = ("#Radio1190", "#KVCU")
 
 
 @dataclass
@@ -214,6 +215,9 @@ def build_status(spin: Spin) -> str:
     for source in (spin.artist, spin.dj):
         tag = to_hashtag(source)
         if tag and tag not in hashtags:
+            hashtags.append(tag)
+    for tag in STATIC_HASHTAGS:
+        if tag not in hashtags:
             hashtags.append(tag)
     if hashtags:
         status = f"{status}\n{' '.join(hashtags)}"
