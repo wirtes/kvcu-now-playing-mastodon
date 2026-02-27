@@ -20,10 +20,8 @@ from pathlib import Path
 from typing import Optional
 
 
-DEFAULT_SPINITRON_URL = (
-    "https://widgets.spinitron.com/widget/now-playing-v2?station=kvcu&num=1&meta=1"
-)
-DEFAULT_FALLBACK_URL = "https://spinitron.com/KVCU/"
+DEFAULT_SPINITRON_URL = "https://spinitron.com/KVCU/"
+DEFAULT_FALLBACK_URL = ""
 DEFAULT_STATE_FILE = "last_spin_id.txt"
 DEFAULT_TIMEOUT = 20
 STATIC_HASHTAGS = ("#Radio1190", "#KVCU")
@@ -34,6 +32,7 @@ class Spin:
     unique_id: str
     played_time: str
     dj: str
+    show_name: str
     song: str
     artist: str
     album: str
@@ -153,7 +152,24 @@ def parse_spin(html_text: str) -> Spin:
             html_text,
             flags=re.DOTALL | re.IGNORECASE,
         )
-    dj = strip_tags(dj_match.group(1)) if dj_match else "Unknown DJ"
+    dj = strip_tags(dj_match.group(1)) if dj_match else ""
+
+    show_match = re.search(
+        r'<h3[^>]*class="[^"]*\bshow-title\b[^"]*"[^>]*>\s*<a[^>]*>(.*?)</a>\s*</h3>',
+        html_text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    show_name = strip_tags(show_match.group(1)) if show_match else ""
+    if not show_name:
+        show_name = field(
+            r'<p[^>]*class="[^"]*\bshow-categoty\b[^"]*"[^>]*>(.*?)</p>',
+            "",
+        )
+    if not show_name:
+        show_name = field(
+            r'<p[^>]*class="[^"]*\bshow-category\b[^"]*"[^>]*>(.*?)</p>',
+            "",
+        )
 
     art_match = re.search(
         r'<td[^>]*class="[^"]*\bspin-art\b[^"]*"[^>]*>.*?<img[^>]*src="([^"]+)"',
@@ -170,6 +186,7 @@ def parse_spin(html_text: str) -> Spin:
         unique_id=unique_id,
         played_time=played_time,
         dj=dj,
+        show_name=show_name,
         song=song,
         artist=artist,
         album=album,
@@ -205,14 +222,30 @@ def to_hashtag(value: str) -> str:
     return f"#{cleaned}" if cleaned else ""
 
 
+def format_presenter_line(spin: Spin) -> str:
+    if spin.dj and spin.show_name:
+        return f"{spin.dj} - {spin.show_name}"
+    if spin.dj:
+        return spin.dj
+    return spin.show_name
+
+
 def build_status(spin: Spin) -> str:
     played_time = format_played_time(spin.played_time)
+    presenter_line = format_presenter_line(spin)
     status = (
         f"🎶 {played_time} {spin.song} "
-        f"by {spin.artist} from {spin.album}.\n{spin.dj}"
+        f"by {spin.artist} from {spin.album}."
     )
+    if presenter_line:
+        status = f"{status}\n{presenter_line}"
     hashtags: list[str] = []
-    for source in (spin.artist, spin.dj):
+    tag_sources = [spin.artist]
+    if spin.dj.strip():
+        tag_sources.append(spin.dj)
+    if spin.show_name.strip():
+        tag_sources.append(spin.show_name)
+    for source in tag_sources:
         tag = to_hashtag(source)
         if tag and tag not in hashtags:
             hashtags.append(tag)
@@ -222,6 +255,17 @@ def build_status(spin: Spin) -> str:
     if hashtags:
         status = f"{status}\n{' '.join(hashtags)}"
     return status
+
+
+def build_alt_text(spin: Spin) -> str:
+    played_time = format_played_time(spin.played_time)
+    presenter_line = format_presenter_line(spin)
+    text = (
+        f"{played_time} {spin.song} by {spin.artist} from {spin.album}."
+    )
+    if presenter_line:
+        text = f"{text} {presenter_line}."
+    return f"{text} This is the cover of {spin.album}."
 
 
 def fetch_binary(url: str) -> tuple[bytes, str]:
@@ -348,11 +392,15 @@ def main() -> int:
         html_text = fetch_html(args.spinitron_url)
     except urllib.error.URLError as err:
         logging.warning("Primary URL failed (%s): %s", args.spinitron_url, err)
-        source_url = args.fallback_url
-        try:
-            html_text = fetch_html(args.fallback_url)
-        except urllib.error.URLError as fallback_err:
-            logging.error("Fallback URL failed (%s): %s", args.fallback_url, fallback_err)
+        fallback_url = args.fallback_url.strip()
+        if fallback_url and fallback_url != args.spinitron_url:
+            source_url = fallback_url
+            try:
+                html_text = fetch_html(fallback_url)
+            except urllib.error.URLError as fallback_err:
+                logging.error("Fallback URL failed (%s): %s", fallback_url, fallback_err)
+                return 1
+        else:
             return 1
 
     try:
@@ -380,7 +428,7 @@ def main() -> int:
 
     media_id: Optional[str] = None
     if spin.album_art_url:
-        alt_text = f"{status_text} This is the cover of {spin.album}."
+        alt_text = build_alt_text(spin)
         try:
             media_id = upload_album_art(
                 base_url=mastodon_base_url,

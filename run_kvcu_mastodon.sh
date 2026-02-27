@@ -5,8 +5,8 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 ENV_FILE=${ENV_FILE:-"$SCRIPT_DIR/.env"}
 STATE_FILE=${STATE_FILE:-"$SCRIPT_DIR/last_spin_id.txt"}
 VISIBILITY=${MASTODON_VISIBILITY:-public}
-SPINITRON_URL=${SPINITRON_URL:-"https://widgets.spinitron.com/widget/now-playing-v2?station=kvcu&num=1&meta=1"}
-SPINITRON_FALLBACK_URL=${SPINITRON_FALLBACK_URL:-"https://spinitron.com/KVCU/"}
+SPINITRON_URL=${SPINITRON_URL:-"https://spinitron.com/KVCU/"}
+SPINITRON_FALLBACK_URL=${SPINITRON_FALLBACK_URL:-""}
 RUN_COUNT=3
 SLEEP_SECONDS=$((60 / RUN_COUNT))
 
