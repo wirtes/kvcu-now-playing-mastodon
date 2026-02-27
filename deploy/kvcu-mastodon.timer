@@ -1,0 +1,10 @@
+[Unit]
+Description=Run KVCU Mastodon poster every 5 minutes
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+Unit=kvcu-mastodon.service
+
+[Install]
+WantedBy=timers.target
