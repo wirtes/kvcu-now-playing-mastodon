@@ -1,5 +1,6 @@
 .env
 .DS_Store
+last_spin_id.txt
 
 # Python
 __pycache__/
