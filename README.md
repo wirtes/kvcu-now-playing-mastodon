@@ -136,7 +136,7 @@ Static hashtags are always appended at the end:
 Run every 5 minutes:
 
 ```bash
-*/5 * * * * cd /Users/wirtes/Code/kvcu-now-playing-mastodon && ./run_kvcu_mastodon.sh >> /tmp/kvcu-mastodon.log 2>&1
+*/5 * * * * cd /PATH/TO/YOUR/CODE/kvcu-now-playing-mastodon && ./run_kvcu_mastodon.sh >> /tmp/kvcu-mastodon.log 2>&1
 ```
 
 ## Troubleshooting
